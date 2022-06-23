@@ -570,7 +570,10 @@ classdef Elasticsearch < handle
                         ret_code ~= matlab.net.http.StatusCode.Created
                     ret = false;
                     try
+                        disp(items.(field_status{1}).error);
                         disp(items.(field_status{1}).status);
+                        disp(body{i*2})
+                        disp(body{i*2+1})
                     catch
                         disp(items.(field_status{1}));
                     end
