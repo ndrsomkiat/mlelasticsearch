@@ -22,7 +22,7 @@ classdef Elasticsearch < handle
             this.http_request = HttpRequest();
             this.default_query_size = 10;
             this.max_query_size = 5000;
-            this.max_total_query_size = 100000;
+            this.max_total_query_size = 5000000;
             this.connected_status = false;
         end
     end
