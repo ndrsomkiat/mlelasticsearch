@@ -204,6 +204,8 @@ classdef Elasticsearch < handle
             % Name, Value : (Name-value pair) 
             % 'field'   (1xN cell of char) must contain specified field
             %           equivalent to _source.includes = [values] with 
+            %
+            % 'must_exist' (logical) flag of query to force query only not-empty data
             %           [query.bool.must.exists.field = value]
             %
             % 'search'  (1xN cell of char) pair value between field and its value.
@@ -240,6 +242,7 @@ classdef Elasticsearch < handle
             addRequired(p, 'index');
             % Source
             addParameter(p, 'field' , [],@(x) any([isa(x, 'cell'), isa(x, 'char')]));
+            addParameter(p, 'must_exist', false)
             % Sort
             validateSortby =  @(x) any(validatestring(x, {'asc', 'desc'}));
             addParameter(p, 'sortname', [], @(x) isa(x, 'char'));
@@ -272,13 +275,15 @@ classdef Elasticsearch < handle
             end
             
             % existing field only
-            if field_size > 0
-                s.xx_source.includes = field;
-                s_cells = cell(field_size, 1);
-                for i = 1:field_size
-                    s_cells{i}.exists.field = field{i};
+            if p.Results.must_exist
+                if field_size > 0
+                    s.xx_source.includes = field;
+                    s_cells = cell(field_size, 1);
+                    for i = 1:field_size
+                        s_cells{i}.exists.field = field{i};
+                    end
+                    s.query.bool.must = s_cells;
                 end
-                s.query.bool.must = s_cells;
             end
             
             % matching field with its value
