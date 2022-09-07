@@ -19,7 +19,7 @@ classdef Elasticsearch < handle
     
     methods (Access = public)
         function this = Elasticsearch()
-            this.http_request = HttpRequest();
+            this.http_request = [];
             this.default_query_size = 10;
             this.max_query_size = 5000;
             this.max_total_query_size = 5000000;
@@ -28,7 +28,7 @@ classdef Elasticsearch < handle
     end
     
     methods (Access = public)
-        function ret = createConnection(this, ip, port)
+        function ret = createConnection(this, ip, port, varargin)
             %createConnection - Create a connector to Elasticsearch
             %
             %   ret = es_obj.createConnection(this, ip, port)
@@ -48,6 +48,16 @@ classdef Elasticsearch < handle
             this.host_port = port;
             this.URI = [ip, ':', port];
             this.connected_status = false;
+
+            p = inputParser;
+            addParameter(p, 'cert_file', "default", @(x) isa(x, 'char'));
+            addParameter(p, 'username', "", @(x) isa(x, 'char'));
+            addParameter(p, 'password', "", @(x) isa(x, 'char'));
+            parse(p, varargin{:});
+
+            % parse query size
+            cert_file = p.Results.cert_file;
+            this.http_request = HttpRequest(cert_file, p.Results.username, p.Results.password);
             
             ret = this.isElasticsearchAlive();
         end
