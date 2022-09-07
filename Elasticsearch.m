@@ -19,16 +19,16 @@ classdef Elasticsearch < handle
     
     methods (Access = public)
         function this = Elasticsearch()
-            this.http_request = HttpRequest();
+            this.http_request = [];
             this.default_query_size = 10;
             this.max_query_size = 5000;
-            this.max_total_query_size = 100000;
+            this.max_total_query_size = 5000000;
             this.connected_status = false;
         end
     end
     
     methods (Access = public)
-        function ret = createConnection(this, ip, port)
+        function ret = createConnection(this, ip, port, varargin)
             %createConnection - Create a connector to Elasticsearch
             %
             %   ret = es_obj.createConnection(this, ip, port)
@@ -48,6 +48,16 @@ classdef Elasticsearch < handle
             this.host_port = port;
             this.URI = [ip, ':', port];
             this.connected_status = false;
+
+            p = inputParser;
+            addParameter(p, 'cert_file', "default", @(x) isa(x, 'char'));
+            addParameter(p, 'username', "", @(x) isa(x, 'char'));
+            addParameter(p, 'password', "", @(x) isa(x, 'char'));
+            parse(p, varargin{:});
+
+            % parse query size
+            cert_file = p.Results.cert_file;
+            this.http_request = HttpRequest(cert_file, p.Results.username, p.Results.password);
             
             ret = this.isElasticsearchAlive();
         end
@@ -204,6 +214,8 @@ classdef Elasticsearch < handle
             % Name, Value : (Name-value pair) 
             % 'field'   (1xN cell of char) must contain specified field
             %           equivalent to _source.includes = [values] with 
+            %
+            % 'must_exist' (logical) flag of query to force query only not-empty data
             %           [query.bool.must.exists.field = value]
             %
             % 'search'  (1xN cell of char) pair value between field and its value.
@@ -240,6 +252,7 @@ classdef Elasticsearch < handle
             addRequired(p, 'index');
             % Source
             addParameter(p, 'field' , [],@(x) any([isa(x, 'cell'), isa(x, 'char')]));
+            addParameter(p, 'must_exist', false)
             % Sort
             validateSortby =  @(x) any(validatestring(x, {'asc', 'desc'}));
             addParameter(p, 'sortname', [], @(x) isa(x, 'char'));
@@ -272,13 +285,15 @@ classdef Elasticsearch < handle
             end
             
             % existing field only
-            if field_size > 0
-                s.xx_source.includes = field;
-                s_cells = cell(field_size, 1);
-                for i = 1:field_size
-                    s_cells{i}.exists.field = field{i};
+            if p.Results.must_exist
+                if field_size > 0
+                    s.xx_source.includes = field;
+                    s_cells = cell(field_size, 1);
+                    for i = 1:field_size
+                        s_cells{i}.exists.field = field{i};
+                    end
+                    s.query.bool.must = s_cells;
                 end
-                s.query.bool.must = s_cells;
             end
             
             % matching field with its value
@@ -570,7 +585,10 @@ classdef Elasticsearch < handle
                         ret_code ~= matlab.net.http.StatusCode.Created
                     ret = false;
                     try
+                        disp(items.(field_status{1}).error);
                         disp(items.(field_status{1}).status);
+                        disp(body{i*2})
+                        disp(body{i*2+1})
                     catch
                         disp(items.(field_status{1}));
                     end

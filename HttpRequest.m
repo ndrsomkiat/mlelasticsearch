@@ -1,18 +1,29 @@
 classdef HttpRequest < handle
     properties (Access = private)
         % HTTP connection option
-        httpOption 
+        httpOption
+        credential
         % HTTP Header field
         jsonHeader
         ndjsonHeader
+        
     end
 
     methods (Access = public)
-        function this = HttpRequest()
+        function this = HttpRequest(cert_file, username, password)
             % Proxy server is disable by default
-            this.httpOption = matlab.net.http.HTTPOptions('UseProxy', 0, 'ConnectTimeout', 30);
+            this.httpOption = matlab.net.http.HTTPOptions('UseProxy', 0, 'ConnectTimeout', 30, 'VerifyServerName', false);
             this.jsonHeader = matlab.net.http.HeaderField('Content-Type', 'application/json');
             this.ndjsonHeader =  matlab.net.http.HeaderField('Content-Type', 'application/x-ndjson');
+            
+            if ~isempty(cert_file)
+                this.httpOption.CertificateFilename = cert_file;
+            end
+
+            if ~isempty(username)
+                this.credential = matlab.net.http.Credentials('Scheme', 'basic', 'Username', username, 'Password', password);
+            end
+
         end
 
         % ========= JSON Things =========
@@ -68,14 +79,17 @@ classdef HttpRequest < handle
             end
 
             r.Method = varargin{1};
-            URI = varargin{2};
-            
-
-            if ~isa(URI, 'char')
+            if ~isa(varargin{2}, 'char')
                 error('createRequest support only URI character array type');
             end
+            scope = matlab.net.URI(varargin{2});
+            this.credential.Scope = scope;
+
             %% -- Debug --
-            % disp(URI);
+            % disp(this.httpOption);
+            % disp(scope);
+            % disp(this.credential);
+            this.httpOption.Credentials = this.credential;
             %% -- end Debug --            
             
             if n >= 3 
@@ -100,13 +114,16 @@ classdef HttpRequest < handle
             end
 
             try
-                [response, ~, ~] = r.send(URI, this.httpOption);
+                [response, ~, ~] = r.send(scope, this.httpOption);
             catch ME
-                if isa(ME,'matlab.net.http.HTTPException')
-                    warning('HTTP exception');
-                    %! Is gone going to conflict with other error code ?
-                    response.StatusCode = matlab.net.http.StatusCode.Gone;
+                if ~isempty(ME.message)
+                    msg = ME.message;
+                else
+                    msg = "";
                 end
+                warning(['HTTP exception', msg]);
+                %! Is gone going to conflict with other error code ?
+                response.StatusCode = matlab.net.http.StatusCode.Gone;
             end
         end
     end
