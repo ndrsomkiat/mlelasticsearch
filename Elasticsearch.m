@@ -368,7 +368,7 @@ classdef Elasticsearch < handle
                         data_size = data_size + st_data_size;
                         % Query next search_after
                         if isfield(st_data, 'sort')
-                            s.search_after = st_data.sort(end); % 2‰ñˆÈ~
+                            s.search_after = st_data.sort(end); % 2ï¿½ï¿½È~
                         end
                         % Concatenate the query result
                         data = this.concatStruct(data, st_data);
@@ -447,6 +447,39 @@ classdef Elasticsearch < handle
             else
                 warning('Mapping failed')
             end
+        end
+
+        % create alias and map to index
+        % [Args]
+        % index : (char) index name 
+        % alias : (char) alias name 
+        % [Return]
+        % ret : true  = create successfully
+        %       false = create failed        
+        function ret = setAliases(this, index, alias)
+            ret = false;
+            if ~isa(index, 'char')
+                error('id must be character vector');
+            end
+
+            if ~isa(alias, 'char')
+                error('alias must be character vector');
+            end
+
+            uri = [this.URI, '/_aliases'];
+            s = struct();
+            s.actions.add.index = index;
+            s.actions.add.alias = alias;
+            
+            % Send
+            s = this.createJsonencode(s);
+            res = this.http_request.createPostJsonRequest(uri, s);
+            if res.StatusCode == matlab.net.http.StatusCode.OK
+                ret = true;
+            else
+                warning('Aliases failed');
+            end
+
         end
         
         % Create a doc to Elasticsearch by custom structure
